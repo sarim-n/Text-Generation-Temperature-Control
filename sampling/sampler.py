@@ -52,7 +52,8 @@ def sample_next_token(
     temperature: float = 1.0,
     top_k: int = 0,
     top_p: float = 1.0,
-    seed: Optional[int] = None
+    seed: Optional[int] = None,
+    generator: Optional[torch.Generator] = None
 ) -> Tuple[int, torch.Tensor, torch.Tensor]:
     """
     Complete sampling pipeline converting raw GPT-2 final-position logits into a selected next token ID.
@@ -77,7 +78,8 @@ def sample_next_token(
         temperature: Temperature scaling factor (default: 1.0).
         top_k: Top-K candidate pool size (default: 0 = disabled).
         top_p: Top-P nucleus threshold (default: 1.0 = disabled).
-        seed: Optional integer random seed for reproducible sampling.
+        seed: Optional integer random seed for single-step reproducible sampling.
+        generator: Optional PyTorch torch.Generator instance for multi-step autoregressive generation.
 
     Returns:
         Tuple containing:
@@ -106,9 +108,9 @@ def sample_next_token(
     # Step 4: Softmax Probability Conversion
     final_probs = logits_to_probs(processed_logits)
 
-    # Step 5: Optional Seed Setup for PyTorch Generator
-    generator = None
-    if seed is not None:
+    # Step 5: Optional Seed/Generator Setup
+    # Priority: if an active generator is passed, use it; otherwise if seed is passed, create a new generator.
+    if generator is None and seed is not None:
         generator = torch.Generator(device=processed_logits.device)
         generator.manual_seed(seed)
 

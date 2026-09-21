@@ -5,9 +5,67 @@ This project is an interactive playground designed to demonstrate how different 
 
 ---
 
+## 🔄 Autoregressive Generation Mechanics
+
+Autoregressive text generation means generating text **one token at a time**, where each newly generated token is appended to the prompt sequence and fed back into GPT-2 to predict the subsequent token.
+
+```
+Prompt
+  │
+  ▼
+Tokenizer (Encode prompt to input_ids [1, N])
+  │
+  ▼
+┌────────────────────────────────────────────────────────┐
+│               Autoregressive Loop                      │
+│                                                        │
+│  Input Token IDs [1, seq_len]                          │
+│           │                                            │
+│           ▼                                            │
+│        GPT-2  (torch.inference_mode())                 │
+│           │                                            │
+│           ▼                                            │
+│    Next-Token Logits  (slice: outputs.logits[:, -1, :])│
+│           │                                            │
+│           ▼                                            │
+│   Sampling Engine (Temperature → Top-K → Top-P)        │
+│           │                                            │
+│           ▼                                            │
+│   Softmax & Categorical Sampling (torch.multinomial)   │
+│           │                                            │
+│           ▼                                            │
+│     Next Token ID (Scalar integer)                     │
+│           │                                            │
+│           ▼                                            │
+│    EOS Check? ──► Stop if EOS token (50256)            │
+│           │ No                                         │
+│           ▼                                            │
+│  Append Token ID to Input Sequence                     │
+│  [1, seq_len + 1] ─────────────────────────────────────┘
+└────────────────────────────────────────────────────────┘
+  │
+  ▼
+Tokenizer Decode (token_ids → Output Text String)
+```
+
+### Key Concepts & Tensor Transformations
+
+1. **Why GPT-2 Generates One Token at a Time**: Transformers generate text token-by-token because causal language models predict probability distributions strictly for the next position given all preceding context.
+2. **Final-Position Logit Slicing (`logits[:, -1, :]`)**:
+   - For an input sequence of length $N$, GPT-2 outputs logits tensor `[1, N, 50257]`.
+   - The logits at position $i < N$ predict token $i+1$ based on prompt history up to position $i$.
+   - We extract `logits[:, -1, :]` of shape `[1, 50257]` because position $-1$ represents the latest token, whose output logits predict the upcoming next token.
+3. **Appending Token IDs**: The sampled token ID is converted to a tensor `[[next_token_id]]` and concatenated along the sequence dimension: `torch.cat([input_ids, next_token_tensor], dim=-1)`.
+4. **Inference Mode (`torch.inference_mode()`)**: Disables autograd tracking and gradient computation, significantly reducing memory overhead and execution latency.
+5. **Continuous Generator for Seed Reproducibility**: Seeded generation instantiates a single `torch.Generator` **once** at the start of `generate_text()`. Passing this `generator` across loop iterations maintains continuous random state without resetting the seed per token.
+6. **EOS Early Stopping**: If the sampled token ID matches GPT-2's End-Of-Sequence token (`eos_token_id = 50256`), generation halts immediately.
+7. **Context Length Safety**: GPT-2 supports up to 1,024 context tokens (`n_positions`). The loop enforces safety limits to prevent tensor overflow errors.
+
+---
+
 ## 🎛️ How Sampling Works
 
-The sampling engine takes the raw logit outputs from GPT-2 and transforms them into a valid, candidate-filtered probability distribution before sampling a single next token:
+The sampling engine takes raw logit outputs from GPT-2 and transforms them into a valid, candidate-filtered probability distribution before sampling a single next token:
 
 ```
 GPT-2 final-position logits
@@ -30,18 +88,6 @@ GPT-2 final-position logits
             ▼
     Selected Token ID
 ```
-
-### 1. Step-by-Step Sampling Flow
-1. **GPT-2 Produces Logits**: A forward pass through GPT-2 yields raw prediction scores across the 50,257 vocabulary for every position.
-2. **Final-Position Slicing**: We extract the slice `logits[:, -1, :]` corresponding to the final prompt token, which predicts the next token.
-3. **Temperature Scaling**: Scales logits (`z / T`). Low $T$ sharpens differences (deterministic), while high $T$ flattens differences (creative/random).
-4. **Top-K Filtering**: Truncates candidate set to a fixed rank cutoff $K$. Suppressed tokens are set to $-\infty$.
-5. **Top-P Filtering**: Dynamically retains the top tokens whose cumulative probability reaches threshold $P$ (the "nucleus").
-6. **Softmax Conversion**: Converts filtered logits into non-negative probabilities summing to $1.0$. Suppressed ($-\infty$) tokens become $0.0$ probability.
-7. **Categorical Sampling**: Randomly samples a token ID according to the probability vector via `torch.multinomial`.
-8. **Sequence Continuation**: The selected token ID is appended to the sequence during autoregressive text generation.
-
----
 
 ### 📊 Sampling Methods Comparison Table
 
@@ -76,10 +122,11 @@ Text Generation Temperature Control/
 ├── app.py                  # Streamlit User Interface
 ├── test_model.py           # Stage 2 GPT-2 inference & logits verification script
 ├── test_sampling.py        # Stage 3 sampling engine & numerical edge-case test suite
+├── test_generation.py      # Stage 4 autoregressive text generation test suite
 ├── generator/              # Model management & autoregressive generation loop
-│   ├── __init__.py
+│   ├── __init__.py         # Package exports
 │   ├── model.py            # GPT-2 model & tokenizer loader
-│   └── generation.py       # Autoregressive generation pipeline
+│   └── generation.py       # Explicit autoregressive text generation engine (generate_text)
 ├── sampling/               # Modular sampling algorithms
 │   ├── __init__.py         # Package exports
 │   ├── softmax.py          # Softmax probability converter (logits_to_probs)
