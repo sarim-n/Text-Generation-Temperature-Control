@@ -5,6 +5,32 @@ This project is an interactive playground designed to demonstrate how different 
 
 ---
 
+## 🔬 Sampling Explainability & Mathematical Definitions
+
+The explainability layer ([sampling/analysis.py](file:///c:/Users/sarim/Text%20Generation%20Temperature%20Control/sampling/analysis.py)) evaluates how hyperparameter adjustments transform the raw output logits of GPT-2 into a final categorical sampling vector.
+
+### 1. Temperature Scaling ($z' = \frac{z}{T}$)
+* **Formula**: $\hat{z}_i = \frac{z_i}{T}$
+* **Low Temperature ($T < 1.0$)**: Exaggerates magnitude differences between logits. Softmax probabilities become sharper, causing the highest probability token to dominate ($P \to 1.0$) and resulting in deterministic, greedy-like text generation.
+* **High Temperature ($T > 1.0$)**: Compresses logit differences. Softmax probabilities flatten out, making lower-probability tokens competitive and increasing randomness and entropy.
+* **Note**: Temperature does *not* alter GPT-2's learned knowledge; it merely rescales logit sharpness prior to normalization.
+
+### 2. Top-K Rank Filtering
+* **Formula**: $\hat{z}_i = \begin{cases} z_i & \text{if } \text{rank}(z_i) \le K \\ -\infty & \text{otherwise} \end{cases}$
+* **Effect**: Hard rank cutoff. Keeps strictly the top $K$ highest logits and sets all remaining $50257 - K$ logits to $-\infty$. Upon softmax, suppressed tokens receive exactly $0.0$ probability.
+
+### 3. Top-P (Nucleus) Cumulative Probability Filtering
+* **Formula**: Find minimal candidate set $S \subset V$ such that $\sum_{w \in S} P(w) \ge P_{\text{threshold}}$. For $w \notin S$, set $\hat{z}(w) = -\infty$.
+* **Effect**: Flexible probability cutoff. Unlike Top-K (which keeps a fixed rank count), Top-P dynamically contracts the candidate pool when the model is confident and expands it when uncertain. Retains the boundary token that pushes cumulative probability over $P$.
+
+### 4. Full-Vocabulary Shannon Entropy ($H(P)$)
+* **Formula**: $H(P) = -\sum_{i=1}^{V} P(w_i) \log_2 P(w_i)$
+* **Meaning**: Measures the overall uncertainty/spread of the probability distribution across the complete 50,257 vocabulary (expressed in bits).
+  - Low Entropy ($\approx 0.0$ bits): High certainty (single dominant candidate token).
+  - High Entropy ($> 4.0$ bits): High uncertainty/spread across many competitive candidates.
+
+---
+
 ## 💻 Streamlit Application
 
 Launch the interactive web user interface by running:
@@ -169,21 +195,23 @@ Prompt → Tokenizer → input_ids → GPT-2 → logits → final-position logit
 
 ```
 Text Generation Temperature Control/
-├── app.py                  # Streamlit User Interface (Presentation Layer)
+├── app.py                  # Streamlit User Interface (Presentation Layer & Charts)
 ├── test_model.py           # Stage 2 GPT-2 inference & logits verification script
 ├── test_sampling.py        # Stage 3 sampling engine & numerical edge-case test suite
 ├── test_generation.py      # Stage 4 autoregressive text generation test suite
+├── test_analysis.py        # Stage 6 sampling explainability & regression test suite
 ├── generator/              # Model management & autoregressive generation loop
 │   ├── __init__.py         # Package exports
 │   ├── model.py            # GPT-2 model & tokenizer loader
 │   └── generation.py       # Explicit autoregressive text generation engine (generate_text)
-├── sampling/               # Modular sampling algorithms
+├── sampling/               # Modular sampling algorithms & analysis
 │   ├── __init__.py         # Package exports
 │   ├── softmax.py          # Softmax probability converter (logits_to_probs)
 │   ├── temperature.py      # Temperature scaling logic (apply_temperature)
 │   ├── top_k.py            # Top-K filtering algorithm (apply_top_k)
 │   ├── top_p.py            # Top-P (nucleus) filtering algorithm (apply_top_p)
-│   └── sampler.py          # Categorical sampler & pipeline orchestrator (sample_next_token)
+│   ├── sampler.py          # Categorical sampler & pipeline orchestrator (sample_next_token)
+│   └── analysis.py         # Sampling explainability & visualization engine (analyze_next_token)
 ├── utils/                  # Helper & formatting utilities
 │   └── __init__.py
 ├── requirements.txt        # Python dependencies

@@ -6,6 +6,7 @@ Sampling module providing explicit PyTorch implementations of:
 - Top-K logit filtering
 - Top-P (nucleus) logit filtering
 - Combined sampling pipeline (sample_next_token)
+- Sampling visualization & explainability analysis (analyze_next_token)
 """
 
 from sampling.softmax import logits_to_probs
@@ -13,6 +14,13 @@ from sampling.temperature import apply_temperature
 from sampling.top_k import apply_top_k
 from sampling.top_p import apply_top_p
 from sampling.sampler import sample_categorical, sample_next_token
+from sampling.analysis import (
+    analyze_next_token,
+    compare_temperatures_analysis,
+    format_token_for_display,
+    SamplingAnalysisResult,
+    TokenCandidateInfo,
+)
 
 __all__ = [
     "logits_to_probs",
@@ -21,4 +29,9 @@ __all__ = [
     "apply_top_p",
     "sample_categorical",
     "sample_next_token",
+    "analyze_next_token",
+    "compare_temperatures_analysis",
+    "format_token_for_display",
+    "SamplingAnalysisResult",
+    "TokenCandidateInfo",
 ]
