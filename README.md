@@ -5,6 +5,56 @@ This project is an interactive playground designed to demonstrate how different 
 
 ---
 
+## 💻 Streamlit Application
+
+Launch the interactive web user interface by running:
+
+```bash
+streamlit run app.py
+```
+
+### 🎯 Available Interface Controls
+
+```text
+                    USER
+                     │
+                     ▼
+              Streamlit UI
+                app.py
+                     │
+                     │ parameters
+                     ▼
+             generate_text(...)
+                     │
+                     ▼
+              Generation Engine
+                     │
+                     ▼
+                  GPT-2
+                     │
+                     ▼
+              Sampling Engine
+                     │
+                     ▼
+               Generated Text
+                     │
+                     ▼
+              Streamlit UI
+```
+
+1. **Prompt Input Area**: A text area accepting custom prompt strings (e.g., `"The future of artificial intelligence"`).
+2. **Temperature Slider ($T \in [0.1, 2.0]$)**:
+   - **Low Temperature ($T < 0.7$)**: Sharpens probabilities; makes generation predictable, focused, and deterministic.
+   - **High Temperature ($T > 1.0$)**: Flattens probabilities; increases entropy, randomness, and output diversity.
+3. **Top-K Truncation Slider ($K \in [0, 100]$)**:
+   - Restricts sampling to the top $K$ highest-scoring tokens ($0$ disables Top-K filtering).
+4. **Top-P Nucleus Slider ($P \in [0.1, 1.0]$)**:
+   - Restricts sampling to the minimal set of tokens whose cumulative probability reaches $P$ ($1.0$ disables Top-P filtering).
+5. **Maximum New Tokens ($1 - 200$)**: Sets the limit on autoregressively generated tokens.
+6. **Use Fixed Seed (Checkbox & Number Input)**: When enabled, seeds the PyTorch `torch.Generator` once for 100% reproducible multi-step runs.
+
+---
+
 ## 🔄 Autoregressive Generation Mechanics
 
 Autoregressive text generation means generating text **one token at a time**, where each newly generated token is appended to the prompt sequence and fed back into GPT-2 to predict the subsequent token.
@@ -119,7 +169,7 @@ Prompt → Tokenizer → input_ids → GPT-2 → logits → final-position logit
 
 ```
 Text Generation Temperature Control/
-├── app.py                  # Streamlit User Interface
+├── app.py                  # Streamlit User Interface (Presentation Layer)
 ├── test_model.py           # Stage 2 GPT-2 inference & logits verification script
 ├── test_sampling.py        # Stage 3 sampling engine & numerical edge-case test suite
 ├── test_generation.py      # Stage 4 autoregressive text generation test suite
