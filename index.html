@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Text Generation Temperature Control & Sampling Visualizer</title>
+  <meta name="description" content="Interactive visualization of temperature, top-k, and top-p sampling in LLM text generation.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo-group">
+        <div class="logo-icon">🔥</div>
+        <div>
+          <h1>Text Generation Temperature Control</h1>
+          <p class="subtitle">Interactive Softmax, Temperature & Sampling Visualizer for LLMs</p>
+        </div>
+      </div>
+      <div class="header-links">
+        <a href="https://github.com/sarim-n/Text-Generation-Temperature-Control" target="_blank" class="github-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+          GitHub Repository
+        </a>
+      </div>
+    </header>
+
+    <!-- Main Workspace Grid -->
+    <main class="main-grid">
+      
+      <!-- Controls Column -->
+      <section class="card controls-card">
+        <h2 class="card-title">🎛️ Hyperparameter Controls</h2>
+
+        <!-- Temperature Slider -->
+        <div class="control-group">
+          <div class="label-row">
+            <label for="temp-slider">Temperature (<span id="temp-val-text">0.70</span>)</label>
+            <span class="badge" id="temp-category">Balanced</span>
+          </div>
+          <input type="range" id="temp-slider" min="0.05" max="2.5" step="0.05" value="0.7">
+          <div class="slider-marks">
+            <span>0.1 (Strict)</span>
+            <span>0.7 (Balanced)</span>
+            <span>1.5 (Creative)</span>
+            <span>2.5 (Random)</span>
+          </div>
+        </div>
+
+        <!-- Presets -->
+        <div class="preset-group">
+          <label>Quick Presets:</label>
+          <div class="preset-buttons">
+            <button class="preset-btn" data-temp="0.1" data-topk="50" data-topp="1.0">🎯 Factual (0.1)</button>
+            <button class="preset-btn active" data-temp="0.7" data-topk="50" data-topp="0.9">🎨 Balanced (0.7)</button>
+            <button class="preset-btn" data-temp="1.2" data-topk="40" data-topp="0.95">⚡ Creative (1.2)</button>
+            <button class="preset-btn" data-temp="2.0" data-topk="0" data-topp="1.0">🎲 Wild (2.0)</button>
+          </div>
+        </div>
+
+        <!-- Top-K & Top-P Truncation Controls -->
+        <div class="control-group">
+          <div class="label-row">
+            <label for="topk-slider">Top-K Truncation (<span id="topk-val-text">Top 5</span>)</label>
+          </div>
+          <input type="range" id="topk-slider" min="1" max="10" step="1" value="5">
+          <p class="control-hint">Limits candidate set to top K highest probability tokens.</p>
+        </div>
+
+        <div class="control-group">
+          <div class="label-row">
+            <label for="topp-slider">Top-P Nucleus (<span id="topp-val-text">0.90</span>)</label>
+          </div>
+          <input type="range" id="topp-slider" min="0.1" max="1.0" step="0.05" value="0.90">
+          <p class="control-hint">Includes smallest set of tokens whose cumulative probability $\ge$ P.</p>
+        </div>
+
+        <!-- Metrics Box -->
+        <div class="metrics-box">
+          <div class="metric-item">
+            <span class="metric-label">Distribution Entropy</span>
+            <span class="metric-value" id="entropy-val">1.45 bits</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label">Active Candidate Pool</span>
+            <span class="metric-value" id="active-candidates">5 tokens</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label">Max Token Prob ($P_{\max}$)</span>
+            <span class="metric-value" id="max-prob">54.2%</span>
+          </div>
+        </div>
+
+        <!-- Equation Formula Card -->
+        <div class="formula-box">
+          <div class="formula-title">Mathematical Formula</div>
+          <div class="formula-code">
+            P(w<sub>i</sub>) = exp(z<sub>i</sub> / T) / ∑ exp(z<sub>j</sub> / T)
+          </div>
+        </div>
+      </section>
+
+      <!-- Visualization Column -->
+      <section class="card viz-card">
+        <div class="viz-header">
+          <h2 class="card-title">📊 Token Probability Distribution</h2>
+          <div class="scenario-selector">
+            <label for="scenario-select">Prompt Context:</label>
+            <select id="scenario-select">
+              <option value="sky">"The sky is ..."</option>
+              <option value="code">"def calculate_average(numbers): return sum(numbers) / ..."</option>
+              <option value="story">"Once upon a time in a distant galaxy, there was a ..."</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Bar chart visualization -->
+        <div class="bars-container" id="bars-container">
+          <!-- Populated dynamically via JS -->
+        </div>
+
+        <!-- Step-by-step Token Sampling Simulator -->
+        <div class="sampling-section">
+          <div class="sampling-header">
+            <h3>🎲 Interactive Sampling Simulator</h3>
+            <button class="sample-btn" id="sample-btn">Sample Next Token 🎲</button>
+          </div>
+          <div class="sampling-output">
+            <div class="prompt-display"><span class="prompt-text" id="prompt-prefix">"The sky is "</span><span class="generated-tokens" id="generated-tokens"></span></div>
+            <div class="sampling-history" id="sampling-history">Click "Sample Next Token" to pick a token based on the calculated distribution above.</div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>Built for demonstrating LLM Temperature & Nucleus Sampling mechanics | Open source on <a href="https://github.com/sarim-n/Text-Generation-Temperature-Control" target="_blank">GitHub</a></p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
