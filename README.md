@@ -5,6 +5,24 @@ This project is an interactive playground designed to demonstrate how different 
 
 ---
 
+## 🔬 GPT-2 Inference Basics
+
+The core causal language modeling pipeline operates as follows:
+
+```
+Prompt → Tokenizer → input_ids → GPT-2 → logits → final-position logits → next-token prediction
+```
+
+1. **Prompt**: Raw text string provided by the user (e.g., `"The future of artificial intelligence"`).
+2. **Tokenizer**: Translates the prompt string into subword tokens using Byte-Pair Encoding (BPE).
+3. **`input_ids`**: Integer tensor `[batch_size, sequence_length]` mapping each token to its index in the 50,257 vocabulary.
+4. **GPT-2 Model**: Processes `input_ids` through multi-head self-attention transformer layers in evaluation mode (`model.eval()`).
+5. **`logits`**: Unnormalized output prediction scores tensor `[batch_size, sequence_length, vocab_size]`.
+6. **Final-Position Logits**: Extracted slice `logits[:, -1, :]` of shape `[batch_size, vocab_size]` representing prediction scores for the immediate next token position.
+7. **Next-Token Prediction**: Applying temperature, top-k, and top-p sampling transformations onto the final-position logits before sampling the next token ID.
+
+---
+
 ## 🎯 What Temperature, Top-K, and Top-P Demonstrate
 
 1. **Temperature ($T$)**:
@@ -29,9 +47,10 @@ The project follows a clean, modular pythonic design:
 ```
 Text Generation Temperature Control/
 ├── app.py                  # Streamlit User Interface
+├── test_model.py           # Stage 2 GPT-2 inference & logits verification script
 ├── generator/              # Model management & autoregressive generation loop
 │   ├── __init__.py
-│   ├── model.py            # GPT-2 model & tokenizer loader
+│   ├── model.py            # GPT-2 model & tokenizer loader (AutoModelForCausalLM / AutoTokenizer)
 │   └── generation.py       # Autoregressive generation pipeline
 ├── sampling/               # Modular sampling algorithms
 │   ├── __init__.py
